@@ -249,7 +249,7 @@
 
     <div id="completion-panel" class="completion-panel">
         <h2 class="completion-title">🎉 Hai completato il gioco!</h2>
-        <p class="completion-score">Punteggio finale: <strong id="final-score">0</strong> / 30</p>
+        <p class="completion-score">Punteggio finale: <strong id="final-score">0</strong> / 50</p>
         <p id="completion-message" class="completion-message"></p>
         <button class="restart-btn" onclick="restartGame()">🔄 Gioca Ancora</button>
     </div>
@@ -317,6 +317,28 @@
                     { text: "Rimuovere gli alberi vicini", correct: false },
                     { text: "Aumentare il traffico dei mezzi aziendali", correct: false }
                 ]
+            },
+            {
+                id: 4,
+                name: "Centrale Trento Alpi",
+                position: [46.07, 11.12],
+                risk: "idrogeologico",
+                options: [
+                    { text: "Installare sistemi di controllo delle valanghe e frane", correct: true },
+                    { text: "Costruire parcheggi per auto elettriche", correct: false },
+                    { text: "Aumentare la produzione di energia", correct: false }
+                ]
+            },
+            {
+                id: 5,
+                name: "Centrale Reggio Calabria",
+                position: [38.11, 15.65],
+                risk: "sismico",
+                options: [
+                    { text: "Implementare fondazioni antisismiche avanzate", correct: true },
+                    { text: "Sostituire i cavi con fibra ottica", correct: false },
+                    { text: "Ridurre il personale in loco", correct: false }
+                ]
             }
         ];
 
@@ -357,8 +379,11 @@
         function createPopupContent(centrale) {
             const isCompleted = completed.includes(centrale.id);
             
+            // Mescola le opzioni in ordine casuale
+            const shuffledOptions = [...centrale.options].sort(() => Math.random() - 0.5);
+            
             let optionsHtml = '';
-            centrale.options.forEach((option, index) => {
+            shuffledOptions.forEach((option, index) => {
                 const btnId = `btn-${centrale.id}-${index}`;
                 const disabledAttr = isCompleted ? 'disabled' : '';
                 const classAttr = isCompleted ? (option.correct ? 'correct' : 'wrong') : '';
@@ -432,7 +457,7 @@
             document.getElementById('final-score').textContent = score;
             
             const messageEl = document.getElementById('completion-message');
-            if (score >= 20) {
+            if (score >= 30) {
                 messageEl.textContent = 'Ottimo! Hai reso la rete FiberCop più resiliente e sostenibile!';
                 messageEl.className = 'completion-message success';
             } else {
