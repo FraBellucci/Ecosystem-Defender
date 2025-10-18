@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🗺️ FiberMap - Gestisci i rischi ambientali</title>
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(to bottom, #f1f5f9, #e0f2fe);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        h1 {
+            font-size: 2em;
+            color: #0f172a;
+            margin-bottom: 10px;
+        }
+
+        .score-display {
+            font-size: 1.2em;
+            color: #475569;
+            background: white;
+            padding: 10px 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            display: inline-block;
+        }
+
+        .score-value {
+            font-weight: bold;
+            color: #0ea5e9;
+        }
+
+        #map {
+            width: 100%;
+            max-width: 1200px;
+            height: 70vh;
+            border-radius: 16px;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
+            z-index: 1;
+        }
+
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 70vh;
+            font-size: 1.2em;
+            color: #64748b;
+        }
+
+        .loading.hidden {
+            display: none;
+        }
+
+        /* Stile personalizzato per i popup di Leaflet */
+        .leaflet-popup-content-wrapper {
+            border-radius: 12px;
+            padding: 0;
+        }
+
+        .leaflet-popup-content {
+            margin: 0;
+            min-width: 250px;
+        }
+
+        .popup-content {
+            padding: 15px;
+        }
+
+        .popup-title {
+            font-size: 1.1em;
+            font-weight: bold;
+            color: #0f172a;
+            margin-bottom: 8px;
+        }
+
+        .popup-risk {
+            margin-bottom: 12px;
+            color: #475569;
+        }
+
+        .popup-risk strong {
+            color: #dc2626;
+        }
+
+        .popup-question {
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #0f172a;
+        }
+
+        .option-btn {
+            display: block;
+            width: 100%;
+            text-align: left;
+            border: 2px solid #cbd5e1;
+            border-radius: 8px;
+            padding: 10px;
+            margin-bottom: 8px;
+            background: white;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.9em;
+        }
+
+        .option-btn:hover:not(:disabled) {
+            background: #e0f2fe;
+            border-color: #0ea5e9;
+        }
+
+        .option-btn:disabled {
+            cursor: default;
+        }
+
+        .option-btn.correct {
+            background: #d1fae5;
+            border-color: #10b981;
+            color: #065f46;
+            font-weight: 600;
+        }
+
+        .option-btn.wrong {
+            background: #fee2e2;
+            border-color: #ef4444;
+            color: #991b1b;
+        }
+
+        .completion-panel {
+            display: none;
+            margin-top: 20px;
+            padding: 25px;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            max-width: 600px;
+            width: 100%;
+        }
+
+        .completion-panel.active {
+            display: block;
+        }
+
+        .completion-title {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #0f172a;
+            margin-bottom: 10px;
+        }
+
+        .completion-score {
+            font-size: 1.2em;
+            color: #475569;
+            margin-bottom: 15px;
+        }
+
+        .completion-message {
+            font-size: 1.1em;
+            font-weight: 600;
+            margin-top: 10px;
+        }
+
+        .completion-message.success {
+            color: #16a34a;
+        }
+
+        .completion-message.warning {
+            color: #dc2626;
+        }
+
+        .restart-btn {
+            margin-top: 20px;
+            padding: 12px 30px;
+            background: #0ea5e9;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .restart-btn:hover {
+            background: #0284c7;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        /* Marker personalizzato */
+        .custom-marker {
+            background: none;
+            border: none;
+        }
+
+        .marker-icon {
+            font-size: 2.5em;
+            filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+        }
+
+        .marker-completed {
+            opacity: 0.6;
+        }
+
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 1.5em;
+            }
+            #map {
+                height: 60vh;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🗺️ FiberMap: Gestisci i rischi ambientali</h1>
+        <div class="score-display">
+            Punteggio di sostenibilità: <span class="score-value" id="score">0</span>
+        </div>
+    </div>
+
+    <div id="loading" class="loading">
+        <p>⏳ Caricamento mappa in corso...</p>
+    </div>
+
+    <div id="map" style="display: none;"></div>
+
+    <div id="completion-panel" class="completion-panel">
+        <h2 class="completion-title">🎉 Hai completato il gioco!</h2>
+        <p class="completion-score">Punteggio finale: <strong id="final-score">0</strong> / 30</p>
+        <p id="completion-message" class="completion-message"></p>
+        <button class="restart-btn" onclick="restartGame()">🔄 Gioca Ancora</button>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+    <script>
+        // Aspetta che Leaflet sia caricato
+        if (typeof L === 'undefined') {
+            window.addEventListener('load', waitForLeaflet);
+        }
+
+        function waitForLeaflet() {
+            if (typeof L !== 'undefined') {
+                init();
+            } else {
+                setTimeout(waitForLeaflet, 100);
+            }
+        }
+
+        function init() {
+            // Inizializza tutto quando Leaflet è pronto
+            window.addEventListener('load', () => {
+                setTimeout(initMap, 500);
+            });
+        }
+    </script>
+
+    <script>
+        let map;
+        let score = 0;
+        let completed = [];
+
+        const centrali = [
+            {
+                id: 1,
+                name: "Centrale Milano Nord",
+                position: [45.51, 9.19],
+                risk: "idrogeologico",
+                options: [
+                    { text: "Costruire barriere anti-allagamento", correct: true },
+                    { text: "Installare pannelli solari", correct: false },
+                    { text: "Ridurre le emissioni dei generatori", correct: false }
+                ]
+            },
+            {
+                id: 2,
+                name: "Centrale Firenze Sud",
+                position: [43.77, 11.25],
+                risk: "sismico",
+                options: [
+                    { text: "Rinforzare la struttura antisismica", correct: true },
+                    { text: "Sostituire i veicoli diesel", correct: false },
+                    { text: "Installare un sistema di drenaggio", correct: false }
+                ]
+            },
+            {
+                id: 3,
+                name: "Centrale Napoli Est",
+                position: [40.85, 14.27],
+                risk: "climatico",
+                options: [
+                    { text: "Aggiungere sistemi di raffreddamento efficienti", correct: true },
+                    { text: "Rimuovere gli alberi vicini", correct: false },
+                    { text: "Aumentare il traffico dei mezzi aziendali", correct: false }
+                ]
+            }
+        ];
+
+        function initMap() {
+            // Nascondi il loading e mostra la mappa
+            document.getElementById('loading').classList.add('hidden');
+            document.getElementById('map').style.display = 'block';
+
+            // Inizializza la mappa
+            map = L.map('map').setView([43.9, 11.2], 6);
+
+            // Aggiungi il layer di OpenStreetMap
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+                maxZoom: 19
+            }).addTo(map);
+
+            // Aggiungi i marker per ogni centrale
+            centrali.forEach(centrale => {
+                const marker = L.marker(centrale.position, {
+                    icon: L.divIcon({
+                        className: 'custom-marker',
+                        html: `<div class="marker-icon" id="marker-${centrale.id}">⚡</div>`,
+                        iconSize: [40, 40],
+                        iconAnchor: [20, 40]
+                    })
+                }).addTo(map);
+
+                // Crea il popup
+                const popupContent = createPopupContent(centrale);
+                marker.bindPopup(popupContent, {
+                    maxWidth: 300,
+                    className: 'custom-popup'
+                });
+            });
+        }
+
+        function createPopupContent(centrale) {
+            const isCompleted = completed.includes(centrale.id);
+            
+            let optionsHtml = '';
+            centrale.options.forEach((option, index) => {
+                const btnId = `btn-${centrale.id}-${index}`;
+                const disabledAttr = isCompleted ? 'disabled' : '';
+                const classAttr = isCompleted ? (option.correct ? 'correct' : 'wrong') : '';
+                
+                optionsHtml += `
+                    <button 
+                        id="${btnId}" 
+                        class="option-btn ${classAttr}" 
+                        onclick="handleChoice(${centrale.id}, ${option.correct})"
+                        ${disabledAttr}
+                    >
+                        ${option.text}
+                    </button>
+                `;
+            });
+
+            return `
+                <div class="popup-content">
+                    <div class="popup-title">${centrale.name}</div>
+                    <div class="popup-risk">
+                        Rischio principale: <strong>${centrale.risk}</strong>
+                    </div>
+                    <div class="popup-question">Scegli la misura correttiva:</div>
+                    ${optionsHtml}
+                </div>
+            `;
+        }
+
+        function handleChoice(centraleId, correct) {
+            if (completed.includes(centraleId)) return;
+
+            // Aggiungi alla lista dei completati
+            completed.push(centraleId);
+
+            // Aggiorna il punteggio
+            score += correct ? 10 : -5;
+            document.getElementById('score').textContent = score;
+
+            // Aggiorna il marker per mostrare che è completato
+            const markerEl = document.getElementById(`marker-${centraleId}`);
+            if (markerEl) {
+                markerEl.classList.add('marker-completed');
+                if (correct) {
+                    markerEl.textContent = '🛡️';
+                } else {
+                    markerEl.textContent = '❌';
+                }
+            }
+
+            // Aggiorna il popup per mostrare le risposte corrette/sbagliate
+            const centrale = centrali.find(c => c.id === centraleId);
+            if (centrale) {
+                // Trova tutti i marker e aggiorna quello corretto
+                map.eachLayer(layer => {
+                    if (layer instanceof L.Marker) {
+                        const pos = layer.getLatLng();
+                        if (pos.lat === centrale.position[0] && pos.lng === centrale.position[1]) {
+                            layer.setPopupContent(createPopupContent(centrale));
+                        }
+                    }
+                });
+            }
+
+            // Controlla se il gioco è finito
+            if (completed.length === centrali.length) {
+                setTimeout(showCompletion, 1000);
+            }
+        }
+
+        function showCompletion() {
+            document.getElementById('final-score').textContent = score;
+            
+            const messageEl = document.getElementById('completion-message');
+            if (score >= 20) {
+                messageEl.textContent = 'Ottimo! Hai reso la rete FiberCop più resiliente e sostenibile!';
+                messageEl.className = 'completion-message success';
+            } else {
+                messageEl.textContent = 'Rivedi le strategie: c\'è ancora margine di miglioramento.';
+                messageEl.className = 'completion-message warning';
+            }
+
+            document.getElementById('completion-panel').classList.add('active');
+        }
+
+        function restartGame() {
+            score = 0;
+            completed = [];
+            document.getElementById('score').textContent = score;
+            document.getElementById('completion-panel').classList.remove('active');
+            
+            // Rimuovi la mappa esistente e ricrea
+            if (map) {
+                map.remove();
+            }
+            
+            initMap();
+        }
+
+        // Inizializza la mappa quando la pagina è caricata
+        if (typeof L !== 'undefined') {
+            window.addEventListener('load', () => {
+                setTimeout(initMap, 500);
+            });
+        } else {
+            waitForLeaflet();
+        }
+    </script>
+</body>
+</html>
